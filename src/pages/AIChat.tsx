@@ -52,19 +52,61 @@ export default function AIChat() {
         goals: goals.map(g => g.name),
       };
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, context, language: lang })
-      });
-      
-      const data = await response.json();
-      
-      if (data.error) throw new Error(data.error);
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("VITE_GEMINI_API_KEY is not defined in environment variables.");
+      }
 
-      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: data.text }]);
-    } catch (err) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: t('aiError') }]);
+      const isEnglish = lang === 'en';
+      const systemPrompt = `You are FinSim AI, an expert Financial Advisor. 
+      You help users understand their personal finances.
+      Use this context to give personalized advice:
+      ${JSON.stringify(context, null, 2)}
+      
+      Keep answers concise, professional, and practical.
+      IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
+
+      // Call Gemini API directly via fetch to avoid importing bulky Node-targeted SDKs in the browser,
+      // which can cause React version/hook conflicts.
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: userMsg
+                }
+              ]
+            }
+          ],
+          systemInstruction: {
+            parts: [
+              {
+                text: systemPrompt
+              }
+            ]
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error?.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: aiText }]);
+    } catch (err: any) {
+      console.error("Gemini frontend error:", err);
+      const errorMessage = err?.message?.includes("VITE_GEMINI_API_KEY")
+        ? (lang === 'es' ? "Error: VITE_GEMINI_API_KEY no está configurada en las variables de entorno de Vercel/Local." : "Error: VITE_GEMINI_API_KEY is not configured in the Vercel/Local environment variables.")
+        : t('aiError');
+      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: errorMessage }]);
     } finally {
       setLoading(false);
     }
