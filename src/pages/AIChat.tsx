@@ -61,7 +61,7 @@ export default function AIChat() {
       const systemPrompt = `You are FinSim AI, an expert Financial Advisor. You help users understand their personal finances. Use this context to give personalized advice: ${JSON.stringify(context)}. Keep answers concise, professional, and practical. IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
 
       // Endpoint estable v1 con el modelo libre de cuota cero
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
