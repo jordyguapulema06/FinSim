@@ -43,54 +43,128 @@ export default function AIChat() {
     setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text: userMsg }]);
     setLoading(true);
 
+    // Build context with robust safety fallbacks to prevent undefined values
+    const safeName = user?.name || 'Usuario';
+    const safeTransactionsCount = Number(transactions?.length || 0);
+    const safeTotalDebts = Number(debts?.reduce((acc, d) => acc + (d?.remainingAmount || 0), 0) || 0);
+    const safeGoals = Array.isArray(goals) ? goals.map(g => g?.name || 'Meta sin nombre') : [];
+
+    const context = {
+      name: safeName,
+      transactionsCount: safeTransactionsCount,
+      totalDebts: safeTotalDebts,
+      goals: safeGoals,
+    };
+
+    const isEnglish = lang === 'en';
+    const systemPrompt = `You are FinSim AI, an expert Financial Advisor. 
+    You help users understand their personal finances.
+    Use this context to give personalized advice:
+    Name: ${context.name}
+    Transactions Count: ${context.transactionsCount}
+    Total Debts: ${context.totalDebts}
+    Financial Goals: ${context.goals.join(', ') || 'Ninguno'}
+    
+    Keep answers concise, professional, and practical.
+    IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
+
     try {
-      // Evitamos valores undefined para que no de error 400
-      const context = {
-        name: user?.name || 'Usuario',
-        transactionsCount: transactions.length || 0,
-        totalDebts: debts.reduce((acc, d) => acc + d.remainingAmount, 0) || 0,
-        goals: goals.map(g => g.name) || [],
-      };
+      let aiText = '';
+      let success = false;
 
-      const isEnglish = lang === 'en';
-      const systemPrompt = `You are FinSim AI, an expert Financial Advisor. You help users understand their personal finances. Use this context to give personalized advice: ${JSON.stringify(context)}. Keep answers concise, professional, and practical. IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
+      // 1. Primary Attempt: Use Groq API with the provided testing key
+      try {
+        const groqApiKey = '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';
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${groqApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              {
+                role: 'system',
+                content: systemPrompt
+              },
+              {
+                role: 'user',
+                content: userMsg
+              }
+            ],
+            temperature: 0.7
+          })
+        });
 
-      // Llamada directa usando tu clave de Groq integrada en el código
-      // Forzamos explícitamente el método POST al inicio del fetch
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer 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'
-        },
-        body: JSON.stringify({
-          model: 'llama3-8b-8192',
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            {
-              role: 'user',
-              content: userMsg
-            }
-          ],
-          temperature: 0.7
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error en la API de Groq: ${response.status}`);
+        if (response.ok) {
+          const data = await response.json();
+          aiText = data.choices?.[0]?.message?.content || '';
+          if (aiText) {
+            success = true;
+          }
+        } else {
+          console.warn(`Groq API returned status: ${response.status}`);
+        }
+      } catch (groqErr) {
+        console.error("Groq API failed, trying fallback...", groqErr);
       }
 
-      const data = await response.json();
-      // Lectura del formato compatible con Groq
-      const aiText = data.choices[0].message.content || '';
-      
+      // 2. Secondary Attempt: Fallback to Gemini 1.5 Flash if Groq failed and Gemini API Key is available
+      if (!success) {
+        const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (geminiApiKey) {
+          try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      {
+                        text: userMsg
+                      }
+                    ]
+                  }
+                ],
+                systemInstruction: {
+                  parts: [
+                    {
+                      text: systemPrompt
+                    }
+                  ]
+                }
+              })
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              if (aiText) {
+                success = true;
+              }
+            }
+          } catch (geminiErr) {
+            console.error("Gemini fallback also failed:", geminiErr);
+          }
+        }
+      }
+
+      // If both methods failed, throw an error
+      if (!success) {
+        throw new Error("Could not connect to any AI provider.");
+      }
+
       setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: aiText }]);
     } catch (err: any) {
-      console.error("Groq connection error:", err);
-      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: t('aiError') }]);
+      console.error("All AI providers failed:", err);
+      const errorMessage = lang === 'es' 
+        ? "Lo siento, ha ocurrido un problema al conectar con el asistente de IA. Por favor, inténtalo de nuevo en unos momentos."
+        : "Sorry, there was a problem connecting to the AI assistant. Please try again in a moment.";
+      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: errorMessage }]);
     } finally {
       setLoading(false);
     }
