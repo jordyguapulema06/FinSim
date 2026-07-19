@@ -68,7 +68,7 @@ export default function AIChat() {
 
       // Call Gemini API directly via fetch to avoid importing bulky Node-targeted SDKs in the browser,
       // which can cause React version/hook conflicts.
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
