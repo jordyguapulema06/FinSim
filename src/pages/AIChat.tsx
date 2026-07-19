@@ -10,6 +10,56 @@ interface Message {
   text: string;
 }
 
+function MarkdownText({ text }: { text: string }) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  
+  return (
+    <div className="space-y-1">
+      {lines.map((line, idx) => {
+        const isBullet = line.trim().startsWith('- ') || line.trim().startsWith('* ');
+        const isNumbered = /^\d+\.\s/.test(line.trim());
+        
+        let content = line;
+        let prefix = null;
+        
+        if (isBullet) {
+          content = line.replace(/^\s*[-*]\s+/, '');
+          prefix = <span className="inline-block w-1.5 h-1.5 bg-current rounded-full mr-2 mb-0.5 align-middle" />;
+        } else if (isNumbered) {
+          const match = line.trim().match(/^(\d+\.\s+)/);
+          const prefixText = match ? match[0] : '';
+          content = line.trim().substring(prefixText.length);
+          prefix = <span className="font-semibold mr-1">{prefixText}</span>;
+        }
+
+        const parts = content.split('**');
+        const renderedParts = parts.map((part, i) => {
+          if (i % 2 === 1) {
+            return <strong key={i} className="font-bold">{part}</strong>;
+          }
+          return part;
+        });
+
+        if (isBullet || isNumbered) {
+          return (
+            <div key={idx} className="pl-4 -indent-4 text-sm leading-relaxed my-1">
+              {prefix}
+              {renderedParts}
+            </div>
+          );
+        }
+
+        return (
+          <p key={idx} className="text-sm leading-relaxed min-h-[1.25rem]">
+            {renderedParts}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AIChat() {
   const { t, lang } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -192,7 +242,7 @@ export default function AIChat() {
               <div className={`px-4 py-3 rounded-2xl ${
                 msg.sender === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm font-serif italic'
               }`}>
-                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                <MarkdownText text={msg.text} />
               </div>
             </div>
           </div>
