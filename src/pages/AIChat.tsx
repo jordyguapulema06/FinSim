@@ -68,32 +68,34 @@ export default function AIChat() {
 
       // Call Gemini API directly via fetch to avoid importing bulky Node-targeted SDKs in the browser,
       // which can cause React version/hook conflicts.
-      const response = await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/finsim-navy/locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer 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'
         },
         body: JSON.stringify({
-          contents: [
+          model: 'llama3-8b-8192',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
             {
               role: 'user',
-              parts: [
-                {
-                  text: `${systemPrompt}\n\nUser Question: ${userMsg}`
-                }
-              ]
+              content: userMsg
             }
-          ]
+          ],
+          temperature: 0.7
         })
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData?.error?.message || `HTTP error! status: ${response.status}`);
+        throw new Error(`Error en la API de Groq: ${response.status}`);
       }
 
       const data = await response.json();
-      const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const aiText = data.choices[0].message.content || '';
       setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: aiText }]);
     } catch (err: any) {
       console.error("Gemini frontend error:", err);
