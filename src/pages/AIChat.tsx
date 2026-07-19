@@ -76,20 +76,14 @@ export default function AIChat() {
         body: JSON.stringify({
           contents: [
             {
+              role: 'user',
               parts: [
                 {
-                  text: userMsg
+                  text: `${systemPrompt}\n\nUser Question: ${userMsg}`
                 }
               ]
             }
-          ],
-          systemInstruction: {
-            parts: [
-              {
-                text: systemPrompt
-              }
-            ]
-          }
+          ]
         })
       });
 
