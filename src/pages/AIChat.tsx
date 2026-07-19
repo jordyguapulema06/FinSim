@@ -99,11 +99,28 @@ export default function AIChat() {
     const safeTotalDebts = Number(debts?.reduce((acc, d) => acc + (d?.remainingAmount || 0), 0) || 0);
     const safeGoals = Array.isArray(goals) ? goals.map(g => g?.name || 'Meta sin nombre') : [];
 
+    // Calculate Net Worth / Patrimonio Neto matching the Dashboard calculation
+    let income = 0;
+    let expenses = 0;
+    let savings = 0;
+    
+    if (Array.isArray(transactions)) {
+      transactions.forEach(t => {
+        if (t?.type === 'income') income += Number(t?.amount || 0);
+        if (t?.type === 'expense') expenses += Number(t?.amount || 0);
+        if (t?.type === 'savings') savings += Number(t?.amount || 0);
+      });
+    }
+
+    const balance = income - expenses;
+    const calculatedNetWorth = balance + savings - safeTotalDebts;
+
     const context = {
       name: safeName,
       transactionsCount: safeTransactionsCount,
       totalDebts: safeTotalDebts,
       goals: safeGoals,
+      netWorth: calculatedNetWorth,
     };
 
     const isEnglish = lang === 'en';
@@ -114,6 +131,9 @@ export default function AIChat() {
     Transactions Count: ${context.transactionsCount}
     Total Debts: ${context.totalDebts}
     Financial Goals: ${context.goals.join(', ') || 'Ninguno'}
+    Net Worth (Patrimonio Neto): ${context.netWorth}
+    
+    El patrimonio neto actual del usuario es de ${context.netWorth}. Si es negativo, prioriza dar consejos para salir de ese saldo negativo y ajustar sus finanzas urgentemente.
     
     Keep answers concise, professional, and practical.
     IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
