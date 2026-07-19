@@ -10,6 +10,7 @@ export default function Transactions() {
   const { user } = useAuthStore();
   const { transactions, addTransaction, deleteTransaction } = useFinanceStore();
   const [isAdding, setIsAdding] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const { t } = useTranslation();
   
   const [formData, setFormData] = useState({
@@ -39,13 +40,61 @@ export default function Transactions() {
 
   const formatCurrency = (val: number) => new Intl.NumberFormat(user?.language || 'es', { style: 'currency', currency: user?.currency || 'USD' }).format(val);
 
+  const filteredTransactions = transactions.filter(tx => {
+    if (filter === 'all') return true;
+    return tx.type === filter;
+  });
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">{t('transactions')}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex justify-between items-center w-full sm:w-auto">
+          <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">{t('transactions')}</h1>
+          <button 
+            onClick={() => setIsAdding(!isAdding)}
+            className="sm:hidden flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {t('newTransaction')}
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
+          <button
+            onClick={() => setFilter('all')}
+            className={`flex-1 sm:flex-initial px-4 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+              filter === 'all' 
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Todas
+          </button>
+          <button
+            onClick={() => setFilter('income')}
+            className={`flex-1 sm:flex-initial px-4 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+              filter === 'income' 
+                ? 'bg-white text-green-700 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Ingresos
+          </button>
+          <button
+            onClick={() => setFilter('expense')}
+            className={`flex-1 sm:flex-initial px-4 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+              filter === 'expense' 
+                ? 'bg-white text-red-700 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Gastos
+          </button>
+        </div>
+
         <button 
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          className="hidden sm:flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-4 h-4 mr-2" />
           {t('newTransaction')}
@@ -132,7 +181,7 @@ export default function Transactions() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((tx) => (
+            {filteredTransactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((tx) => (
               <tr key={tx.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.date}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tx.description || '-'}</td>
@@ -154,7 +203,7 @@ export default function Transactions() {
                 </td>
               </tr>
             ))}
-            {transactions.length === 0 && (
+            {filteredTransactions.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
                   {t('noTransactionsRecorded')}

@@ -30,28 +30,52 @@ export default function Dashboard() {
     const balance = income - expenses;
     const netWorth = balance + savings - totalDebts;
     
-    // Financial Health Score (0-100)
+    // Financial Health Score & Status based on Net Worth real-time stability
     let health = 50;
-    if (income > 0) {
-      const savingsRate = savings / income;
-      const debtRatio = totalDebts / (income * 12); // Assuming income is monthly
+    let healthStatusKey: TranslationKey = 'regular';
+
+    if (netWorth < 0 || balance < 0) {
+      if (netWorth < -1000 || balance < -1000) {
+        health = 15;
+        healthStatusKey = 'critical';
+      } else {
+        health = 35;
+        healthStatusKey = 'risky';
+      }
+    } else if (netWorth < 1500) {
+      health = 50;
+      healthStatusKey = 'regular';
+    } else {
+      // Net worth is positive and stable (>= 1500)
+      health = 60;
+      if (income > 0) {
+        const savingsRate = savings / income;
+        const debtRatio = totalDebts / (income * 12);
+        
+        if (savingsRate > 0.2) health += 15;
+        else if (savingsRate > 0.1) health += 5;
+        
+        if (debtRatio === 0) health += 15;
+        else if (debtRatio < 0.3) health += 5;
+        else if (debtRatio > 0.6) health -= 20;
+      } else {
+        if (totalDebts === 0) health += 15;
+      }
       
-      if (savingsRate > 0.2) health += 20;
-      else if (savingsRate > 0.1) health += 10;
-      
-      if (debtRatio === 0) health += 30;
-      else if (debtRatio < 0.3) health += 15;
-      else if (debtRatio > 0.6) health -= 20;
+      if (netWorth >= 4000) health += 10;
+
+      health = Math.max(0, Math.min(100, health));
+
+      // Limit to 'good' (cap at 75) if netWorth is positive but not highly stable (< 3000)
+      if (netWorth < 3000) {
+        health = Math.min(75, health);
+      }
+
+      if (health >= 80) healthStatusKey = 'excellent';
+      else if (health >= 60) healthStatusKey = 'good';
+      else healthStatusKey = 'regular';
     }
     
-    health = Math.max(0, Math.min(100, health));
-    
-    let healthStatusKey: TranslationKey = 'regular';
-    if (health >= 80) healthStatusKey = 'excellent';
-    else if (health >= 60) healthStatusKey = 'good';
-    else if (health < 40) healthStatusKey = 'risky';
-    else if (health < 20) healthStatusKey = 'critical';
-
     return { income, expenses, balance, savings, totalDebts, netWorth, health, healthStatusKey };
   }, [transactions, debts]);
 
@@ -63,6 +87,28 @@ export default function Dashboard() {
     }, {} as Record<string, number>);
     
     return Object.entries(grouped).map(([name, value]) => ({ name, value }));
+  }, [transactions]);
+
+  const monthlyOverspent = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const prefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+
+    let currentMonthIncome = 0;
+    let currentMonthExpense = 0;
+
+    transactions.forEach(t => {
+      if (t.date && t.date.startsWith(prefix)) {
+        if (t.type === 'income') {
+          currentMonthIncome += t.amount;
+        } else if (t.type === 'expense') {
+          currentMonthExpense += t.amount;
+        }
+      }
+    });
+
+    return currentMonthExpense > currentMonthIncome;
   }, [transactions]);
 
   // Translate evolution chart labels dynamically
@@ -97,6 +143,15 @@ export default function Dashboard() {
           {t('financialHealth')}: {t(stats.healthStatusKey)} ({Math.round(stats.health)}/100)
         </div>
       </div>
+
+      {monthlyOverspent && (
+        <div id="monthly-overspent-alert" className="bg-red-50 border border-red-200 p-4 rounded-3xl flex items-center shadow-sm">
+          <span className="text-xl mr-3" role="img" aria-label="warning">⚠️</span>
+          <p className="text-sm font-medium text-red-800">
+            Alerta: Tus gastos de este mes superan tus ingresos
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title={t('netWorth')} value={formatCurrency(stats.netWorth)} icon={Wallet} color="text-blue-600" bg="bg-blue-50" />
