@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
 import { LineChart } from 'lucide-react';
+import { UserProfile } from '../types';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -21,8 +23,31 @@ export default function Login() {
       if (import.meta.env.VITE_FIREBASE_API_KEY === "dummy") {
          throw new Error("Credenciales de Firebase no configuradas en entorno.");
       }
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      // Fetch user profile and set state synchronously before navigation to prevent race condition
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as UserProfile;
+        useAuthStore.setState({ user: userData, firebaseUser, loading: false });
+      } else {
+        const newProfile: UserProfile = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          name: firebaseUser.displayName || 'User',
+          currency: 'USD',
+          language: 'es',
+          theme: 'dark'
+        };
+        await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+        useAuthStore.setState({ user: newProfile, firebaseUser, loading: false });
+      }
+      
+      // Initialize the auth listener to keep tracking changes
       initialize();
+      
+      // Navigate immediately
       navigate('/');
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión");

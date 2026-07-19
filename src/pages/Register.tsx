@@ -36,6 +36,9 @@ export default function Register() {
       };
       await setDoc(doc(db, 'users', userCredential.user.uid), newProfile);
       
+      // Set store state synchronously before navigating to prevent race condition
+      useAuthStore.setState({ user: newProfile, firebaseUser: userCredential.user, loading: false });
+      
       initialize();
       navigate('/');
     } catch (err: any) {
