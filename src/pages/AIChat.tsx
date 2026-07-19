@@ -44,7 +44,7 @@ export default function AIChat() {
     setLoading(true);
 
     try {
-      // Build context (Evitamos valores undefined que rompen el JSON)
+      // Evitamos valores undefined para que no de error 400
       const context = {
         name: user?.name || 'Usuario',
         transactionsCount: transactions.length || 0,
@@ -52,44 +52,43 @@ export default function AIChat() {
         goals: goals.map(g => g.name) || [],
       };
 
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("VITE_GEMINI_API_KEY is not defined.");
-      }
-
       const isEnglish = lang === 'en';
       const systemPrompt = `You are FinSim AI, an expert Financial Advisor. You help users understand their personal finances. Use this context to give personalized advice: ${JSON.stringify(context)}. Keep answers concise, professional, and practical. IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
 
-      // Endpoint estable v1 con el modelo libre de cuota cero
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      // Llamada directa usando tu clave de Groq integrada en el código
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer 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'
         },
         body: JSON.stringify({
-          contents: [
+          model: 'llama3-8b-8192',
+          messages: [
             {
-              parts: [
-                {
-                  text: `${systemPrompt}\n\nPregunta del usuario: ${userMsg}`
-                }
-              ]
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: userMsg
             }
-          ]
+          ],
+          temperature: 0.7
         })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Error en la API de Groq: ${response.status}`);
       }
 
       const data = await response.json();
-      // Estructura de lectura limpia y segura para Gemini v1
-      const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No se pudo obtener respuesta.';
+      // Lectura del formato compatible con Groq
+      const aiText = data.choices[0].message.content || '';
       
       setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: aiText }]);
     } catch (err: any) {
-      console.error("Gemini connection error:", err);
+      console.error("Groq connection error:", err);
       setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: t('aiError') }]);
     } finally {
       setLoading(false);
