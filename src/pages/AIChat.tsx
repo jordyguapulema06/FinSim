@@ -44,30 +44,18 @@ export default function AIChat() {
     setLoading(true);
 
     try {
-      // Build context
+      // Build context (aseguramos valores por defecto para evitar undefined y error 400)
       const context = {
-        name: user?.name,
-        transactionsCount: transactions.length,
-        totalDebts: debts.reduce((acc, d) => acc + d.remainingAmount, 0),
-        goals: goals.map(g => g.name),
+        name: user?.name || 'Usuario',
+        transactionsCount: transactions.length || 0,
+        totalDebts: debts.reduce((acc, d) => acc + d.remainingAmount, 0) || 0,
+        goals: goals.map(g => g.name) || [],
       };
 
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("VITE_GEMINI_API_KEY is not defined in environment variables.");
-      }
-
       const isEnglish = lang === 'en';
-      const systemPrompt = `You are FinSim AI, an expert Financial Advisor. 
-      You help users understand their personal finances.
-      Use this context to give personalized advice:
-      ${JSON.stringify(context, null, 2)}
-      
-      Keep answers concise, professional, and practical.
-      IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
+      const systemPrompt = `You are FinSim AI, an expert Financial Advisor. You help users understand their personal finances. Use this context to give personalized advice: ${JSON.stringify(context)}. Keep answers concise, professional, and practical. IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
 
-      // Call Gemini API directly via fetch to avoid importing bulky Node-targeted SDKs in the browser,
-      // which can cause React version/hook conflicts.
+      // Petición directa a la API gratuita de Groq
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -98,11 +86,8 @@ export default function AIChat() {
       const aiText = data.choices[0].message.content || '';
       setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: aiText }]);
     } catch (err: any) {
-      console.error("Gemini frontend error:", err);
-      const errorMessage = err?.message?.includes("VITE_GEMINI_API_KEY")
-        ? (lang === 'es' ? "Error: VITE_GEMINI_API_KEY no está configurada en las variables de entorno de Vercel/Local." : "Error: VITE_GEMINI_API_KEY is not configured in the Vercel/Local environment variables.")
-        : t('aiError');
-      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: errorMessage }]);
+      console.error("Groq frontend error:", err);
+      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'ai', text: t('aiError') }]);
     } finally {
       setLoading(false);
     }
