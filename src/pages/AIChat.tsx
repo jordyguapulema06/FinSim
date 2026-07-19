@@ -56,6 +56,7 @@ export default function AIChat() {
       const systemPrompt = `You are FinSim AI, an expert Financial Advisor. You help users understand their personal finances. Use this context to give personalized advice: ${JSON.stringify(context)}. Keep answers concise, professional, and practical. IMPORTANT: You MUST reply in the language the user preferred. The user's preferred language is ${isEnglish ? 'English' : 'Spanish'}. Write all your advice and answers in ${isEnglish ? 'English' : 'Spanish'}.`;
 
       // Llamada directa usando tu clave de Groq integrada en el código
+      // Forzamos explícitamente el método POST al inicio del fetch
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
