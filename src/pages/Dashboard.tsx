@@ -22,7 +22,7 @@ export default function Dashboard() {
     
     transactions.forEach(t => {
       if (t.type === 'income') income += t.amount;
-      if (t.type === 'expense') expenses += t.amount;
+      if (t.type === 'expense' || t.type === 'debt_payment') expenses += t.amount;
       if (t.type === 'savings') savings += t.amount;
     });
 

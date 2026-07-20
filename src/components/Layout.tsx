@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Receipt, Target, LineChart, MessageSquare, User, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Receipt, Target, LineChart, MessageSquare, User, Settings, LogOut, CreditCard } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/financeStore';
 import { useEffect } from 'react';
@@ -22,6 +22,7 @@ export default function Layout() {
     { name: t('dashboard'), href: '/', icon: LayoutDashboard },
     { name: t('transactions'), href: '/transactions', icon: Receipt },
     { name: t('goals'), href: '/goals', icon: Target },
+    { name: t('debts'), href: '/debts', icon: CreditCard },
     { name: t('simulator'), href: '/simulator', icon: LineChart },
     { name: t('aiAdvisor'), href: '/chat', icon: MessageSquare },
   ];

@@ -16,6 +16,7 @@ import AIChat from './pages/AIChat';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Goals from './pages/Goals';
+import Debts from './pages/Debts';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthStore();
@@ -48,6 +49,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="goals" element={<Goals />} />
+          <Route path="debts" element={<Debts />} />
           <Route path="simulator" element={<Simulator />} />
           <Route path="chat" element={<AIChat />} />
           <Route path="profile" element={<Profile />} />

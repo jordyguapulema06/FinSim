@@ -8,7 +8,7 @@ import { useTranslation } from '../hooks/useTranslation';
 
 export default function Transactions() {
   const { user } = useAuthStore();
-  const { transactions, addTransaction, deleteTransaction } = useFinanceStore();
+  const { transactions, addTransaction, deleteTransaction, goals, debts } = useFinanceStore();
   const [isAdding, setIsAdding] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const { t } = useTranslation();
@@ -18,24 +18,53 @@ export default function Transactions() {
     amount: '',
     category: '',
     date: format(new Date(), 'yyyy-MM-dd'),
-    description: ''
+    description: '',
+    associatedGoalId: '',
+    associatedDebtId: ''
   });
+
+  const handleTypeChange = (newType: TransactionType) => {
+    setFormData(prev => ({
+      ...prev,
+      type: newType,
+      associatedGoalId: '',
+      associatedDebtId: ''
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    
-    await addTransaction({
+
+    const txData: Omit<Transaction, 'id'> = {
       uid: user.uid,
       type: formData.type,
       amount: parseFloat(formData.amount),
       category: formData.category,
       date: formData.date,
       description: formData.description
-    });
+    };
+
+    if (['income', 'savings'].includes(formData.type) && formData.associatedGoalId) {
+      txData.associatedGoalId = formData.associatedGoalId;
+    }
+
+    if (['expense', 'debt_payment'].includes(formData.type) && formData.associatedDebtId) {
+      txData.associatedDebtId = formData.associatedDebtId;
+    }
+    
+    await addTransaction(txData);
     
     setIsAdding(false);
-    setFormData({ ...formData, amount: '', description: '', category: '' });
+    setFormData({
+      type: 'expense',
+      amount: '',
+      category: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      description: '',
+      associatedGoalId: '',
+      associatedDebtId: ''
+    });
   };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat(user?.language || 'es', { style: 'currency', currency: user?.currency || 'USD' }).format(val);
@@ -109,8 +138,8 @@ export default function Transactions() {
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('type')}</label>
               <select 
                 value={formData.type} 
-                onChange={e => setFormData({...formData, type: e.target.value as TransactionType})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                onChange={e => handleTypeChange(e.target.value as TransactionType)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
               >
                 <option value="income">{t('incomeOpt')}</option>
                 <option value="expense">{t('expenseOpt')}</option>
@@ -147,6 +176,39 @@ export default function Transactions() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
+
+            {['income', 'savings'].includes(formData.type) && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Asociar a Meta (Opcional)</label>
+                <select
+                  value={formData.associatedGoalId}
+                  onChange={e => setFormData({ ...formData, associatedGoalId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+                >
+                  <option value="">-- Ninguna meta --</option>
+                  {goals.map(g => (
+                    <option key={g.id} value={g.id}>{g.name} (Meta: {formatCurrency(g.targetAmount)})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {['expense', 'debt_payment'].includes(formData.type) && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Asociar a Deuda (Opcional)</label>
+                <select
+                  value={formData.associatedDebtId}
+                  onChange={e => setFormData({ ...formData, associatedDebtId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+                >
+                  <option value="">-- Ninguna deuda --</option>
+                  {debts.map(d => (
+                    <option key={d.id} value={d.id}>{d.name} (Restante: {formatCurrency(d.remainingAmount)})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('description')}</label>
               <input 

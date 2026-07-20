@@ -19,6 +19,8 @@ export interface Transaction {
   date: string;
   description: string;
   isRecurring?: boolean;
+  associatedGoalId?: string;
+  associatedDebtId?: string;
 }
 
 export interface Goal {
@@ -37,5 +39,8 @@ export interface Debt {
   totalAmount: number;
   remainingAmount: number;
   interestRate: number;
-  minimumPayment: number;
+  interestRateType: 'annual' | 'monthly';
+  monthsTerm: number;
+  monthsPaid: number;
+  minimumPayment?: number;
 }

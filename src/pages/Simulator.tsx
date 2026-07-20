@@ -14,7 +14,7 @@ export default function Simulator() {
   const [scenario, setScenario] = useState('maintain'); // maintain, reduce_expenses, increase_savings, pay_debts
   
   const currentIncome = transactions.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0);
-  const currentExpenses = transactions.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0);
+  const currentExpenses = transactions.filter(t => ['expense', 'debt_payment'].includes(t.type)).reduce((a, b) => a + b.amount, 0);
   const currentSavings = transactions.filter(t => t.type === 'savings').reduce((a, b) => a + b.amount, 0);
   const currentDebts = debts.reduce((a, b) => a + b.remainingAmount, 0);
   

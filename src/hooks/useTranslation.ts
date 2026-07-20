@@ -13,6 +13,7 @@ const translations = {
     signOut: "Cerrar sesión",
     premiumPartner: "Socio Premium",
     loading: "Cargando...",
+    debts: "Deudas",
     
     // Dashboard
     hello: "Hola",
@@ -115,6 +116,7 @@ const translations = {
     signOut: "Sign Out",
     premiumPartner: "Premium Partner",
     loading: "Loading...",
+    debts: "Debts",
     
     // Dashboard
     hello: "Hello",

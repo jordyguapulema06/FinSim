@@ -13,7 +13,9 @@ interface FinanceState {
   deleteTransaction: (id: string) => Promise<void>;
   updateTransaction: (id: string, tx: Partial<Transaction>) => Promise<void>;
   addGoal: (goal: Omit<Goal, 'id'>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
   addDebt: (debt: Omit<Debt, 'id'>) => Promise<void>;
+  deleteDebt: (id: string) => Promise<void>;
 }
 
 export const useFinanceStore = create<FinanceState>((set) => ({
@@ -50,9 +52,57 @@ export const useFinanceStore = create<FinanceState>((set) => ({
     };
   },
   addTransaction: async (tx) => {
+    // 1. Add the transaction to Firestore
     await addDoc(collection(db, 'transactions'), tx);
+
+    // 2. If associated with a goal, update goal progress
+    if (tx.associatedGoalId) {
+      const currentGoal = useFinanceStore.getState().goals.find(g => g.id === tx.associatedGoalId);
+      if (currentGoal) {
+        const goalDocRef = doc(db, 'goals', tx.associatedGoalId);
+        await updateDoc(goalDocRef, {
+          currentAmount: currentGoal.currentAmount + tx.amount
+        });
+      }
+    }
+
+    // 3. If associated with a debt, update debt progress
+    if (tx.associatedDebtId) {
+      const currentDebt = useFinanceStore.getState().debts.find(d => d.id === tx.associatedDebtId);
+      if (currentDebt) {
+        const debtDocRef = doc(db, 'debts', tx.associatedDebtId);
+        await updateDoc(debtDocRef, {
+          remainingAmount: Math.max(0, currentDebt.remainingAmount - tx.amount),
+          monthsPaid: (currentDebt.monthsPaid || 0) + 1
+        });
+      }
+    }
   },
   deleteTransaction: async (id) => {
+    // 1. Get transaction info first to reverse associations
+    const tx = useFinanceStore.getState().transactions.find(t => t.id === id);
+    if (tx) {
+      if (tx.associatedGoalId) {
+        const currentGoal = useFinanceStore.getState().goals.find(g => g.id === tx.associatedGoalId);
+        if (currentGoal) {
+          const goalDocRef = doc(db, 'goals', tx.associatedGoalId);
+          await updateDoc(goalDocRef, {
+            currentAmount: Math.max(0, currentGoal.currentAmount - tx.amount)
+          });
+        }
+      }
+      if (tx.associatedDebtId) {
+        const currentDebt = useFinanceStore.getState().debts.find(d => d.id === tx.associatedDebtId);
+        if (currentDebt) {
+          const debtDocRef = doc(db, 'debts', tx.associatedDebtId);
+          await updateDoc(debtDocRef, {
+            remainingAmount: Math.min(currentDebt.totalAmount, currentDebt.remainingAmount + tx.amount),
+            monthsPaid: Math.max(0, (currentDebt.monthsPaid || 0) - 1)
+          });
+        }
+      }
+    }
+    // 2. Delete transaction from Firestore
     await deleteDoc(doc(db, 'transactions', id));
   },
   updateTransaction: async (id, tx) => {
@@ -61,7 +111,13 @@ export const useFinanceStore = create<FinanceState>((set) => ({
   addGoal: async (goal) => {
     await addDoc(collection(db, 'goals'), goal);
   },
+  deleteGoal: async (id) => {
+    await deleteDoc(doc(db, 'goals', id));
+  },
   addDebt: async (debt) => {
     await addDoc(collection(db, 'debts'), debt);
+  },
+  deleteDebt: async (id) => {
+    await deleteDoc(doc(db, 'debts', id));
   }
 }));
